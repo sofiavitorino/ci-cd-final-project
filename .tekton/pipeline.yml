@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: ci-cd-pipeline
+spec:
+  params:
+    - name: IMAGE
+      type: string
+    - name: APP_NAME
+      type: string
+
+  workspaces:
+    - name: shared-workspace
+
+  tasks:
+    - name: lint
+      taskRef:
+        name: nodejs-lint
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: test
+      runAfter:
+        - lint
+      taskRef:
+        name: nodejs-test
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: build
+      runAfter:
+        - test
+      taskRef:
+        name: build-image
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    - name: deploy
+      runAfter:
+        - build
+      taskRef:
+        name: deploy-openshift
+      params:
+        - name: APP_NAME
+          value: $(params.APP_NAME)
+        - name: IMAGE
+          value: $(params.IMAGE)
